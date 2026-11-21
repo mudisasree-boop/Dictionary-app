@@ -127,6 +127,12 @@ dl.meta dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .st-learning { color: var(--warn); background: var(--warn-soft); }
 .st-mastered { color: var(--good); background: var(--good-soft); }
 
+/* Claude's drawing for a word */
+.pic { margin: 0; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: var(--paper); aspect-ratio: 16 / 10; max-width: 100%; }
+.pic img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.pic-wait { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; padding: 12px; }
+.book-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 360px) { .book-row { grid-template-columns: 1fr; } }
 /* Photo */
 .photo-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .photo-pick label { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; border: 1px dashed var(--pencil); border-radius: 8px; color: var(--pencil); font-weight: 500; cursor: pointer; text-align: center; }
@@ -214,11 +220,15 @@ nav.tabs a:focus-visible { outline: 2px solid var(--pencil); outline-offset: -4p
 
     <div class="panel" id="photo-panel">
       <div class="label">Or add a photo of the page</div>
+      <div class="book-row">
+        <input type="text" id="ph-book" placeholder="Book title (optional)" aria-label="Book title (optional)">
+        <input type="text" id="ph-author" placeholder="Author (optional)" aria-label="Author (optional)">
+      </div>
       <div class="photo-pick" id="photo-pick">
         <label for="cam"><svg viewBox="0 0 24 24"><path d="M3 8h3l2-3h8l2 3h3v11H3z"/><circle cx="12" cy="13" r="3.5"/></svg>Take photo<input type="file" id="cam" accept="image/*" capture="environment"></label>
         <label for="lib"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/><circle cx="15.5" cy="8.5" r="1.5"/></svg>Choose photo<input type="file" id="lib" accept="image/*"></label>
       </div>
-      <p class="small muted" style="margin:0" id="photo-hint">Underlined or circled words are picked up first. Otherwise Claude finds the words most readers would stop at. Claude also explains the passage. The photo and explanation aren't saved.</p>
+      <p class="small muted" style="margin:0" id="photo-hint">Underlined or circled words are picked up first. Otherwise Claude finds the words most readers would stop at. Claude also explains the passage, using what it knows about the book if you name it. The photo and explanation aren't saved.</p>
       <div id="photo-flow" class="stack" hidden></div>
     </div>
 
@@ -392,6 +402,7 @@ function entryHtml(e, opts = {}) {
     ${opts.eyebrow ? `<div class="eyebrow"><span class="label">${esc(opts.eyebrow)}</span>${opts.badge || ""}</div>` : ""}
     <h3 class="hw">${esc(e.headword)}</h3>
     <div class="pron">${e.syllables ? `<span class="syl">${esc(e.syllables)}</span>` : ""}${e.ipa ? `<span class="ipa">${esc(e.ipa)}</span>` : ""}${speakBtn}</div>
+    ${e.picture ? picHtml(e) : opts.picSlot ? `<div class="pic pic-wait" data-pic>${THINK("Drawing a picture…")}</div>` : ""}
     ${e.inContext ? `<div class="ctx"><span class="label">In your sentence</span><br>${esc(e.inContext)}</div>` : ""}
     ${groups.map((g) => `<div class="pos-group"><div class="pos">${esc(g.pos || "")}</div><ol class="senses">${g.list.map((s) => `<li><div class="def">${esc(s.definition)}</div>${s.example ? `<div class="ex">${esc(s.example)}</div>` : ""}</li>`).join("")}</ol></div>`).join("")}
     ${e.quote ? `<div class="quote">${quoteHtml(e.quote, e.headword)}</div>` : ""}
@@ -449,6 +460,46 @@ Reply with only a JSON object of this shape:
 Give 1 to 4 senses, most common first${sentence ? ", but put the sense used in the reader's sentence first" : ""}.
 If it is not an English word or looks misspelled, reply {"found": false, "suggestions": ["up to 4 words they probably meant"]}.`;
   return S.sample.json(prompt, { modelTier: "quick", signal });
+}
+
+/* ---------- pictures ---------- */
+function cleanSvg(t) {
+  const m = String(t || "").match(/<svg[\s\S]*<\/svg>/i);
+  if (!m || m[0].length > 20000) throw { code: "bad_svg" };
+  let svg = m[0]
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "")
+    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*')/gi, "");
+  if (!/xmlns=/.test(svg.slice(0, 300))) svg = svg.replace(/<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
+  return svg;
+}
+const picSrc = (svg) => "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+function picHtml(e) {
+  return e && e.picture ? `<figure class="pic"><img src="${picSrc(e.picture)}" alt="Drawing for “${esc(e.headword)}”"></figure>` : "";
+}
+async function drawPicture(entry, signal) {
+  const s0 = (entry.senses || [])[0] || {};
+  const prompt = `Draw a simple illustration that helps a reader remember the English word "${entry.headword}" (${s0.pos || ""}: ${s0.definition || ""}).
+Reply with only one SVG element and nothing else:
+- Open with <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200">.
+- First draw a <rect> filling the whole canvas in a soft, light background colour.
+- Flat, friendly illustration style: bold simple shapes, a small harmonious palette, dark outlines where they help.
+- No words, letters or numbers anywhere in the picture.
+- For a concrete word, draw the thing or action clearly. For an abstract word, draw a small scene or visual metaphor that captures the idea.
+- Keep it under 6000 characters. No scripts, external images, fonts or links.`;
+  const { text } = await S.sample(prompt, { signal, cache: { gcTime: 86400000 } });
+  return cleanSvg(text);
+}
+function startDrawing(entry, slot) {
+  drawPicture(entry).then((svg) => {
+    entry.picture = svg;
+    if (slot.isConnected) slot.outerHTML = picHtml(entry);
+    if (entry._ref) entry._ref.update({ picture: svg }).catch(() => {});
+  }).catch((e) => {
+    if (!slot.isConnected) return;
+    slot.innerHTML = `<span class="small muted">${e && e.code === "bad_svg" ? "The drawing didn't come out right." : esc(aiError(e))}</span><button type="button" class="btn-ghost">Try again</button>`;
+    slot.querySelector("button").onclick = () => { slot.innerHTML = THINK("Drawing a picture…"); startDrawing(entry, slot); };
+  });
 }
 
 /* ---------- LOOK UP view ---------- */
@@ -509,7 +560,9 @@ function renderLookupResult(entry, target, onDone) {
     footer = `<div class="row"><button type="button" class="btn" data-save>Save to the list</button><span class="small muted" data-save-msg></span></div>`;
   }
   if (onDone) footer += `<div class="row"><button type="button" class="btn-2" data-next>${esc(onDone.label)}</button></div>`;
-  target.innerHTML = entryHtml(entry, { eyebrow: "Dictionary entry", footer });
+  target.innerHTML = entryHtml(entry, { eyebrow: "Dictionary entry", footer, picSlot: !existing && !entry.picture && !!S.sample });
+  const slot = $("[data-pic]", target);
+  if (slot) startDrawing(entry, slot);
   const saveBtn = $("[data-save]", target);
   if (saveBtn) saveBtn.onclick = async () => {
     saveBtn.disabled = true; saveBtn.textContent = "Saving…";
@@ -536,6 +589,8 @@ $("#lookup-form").addEventListener("submit", (ev) => {
   $("#q").blur();
 });
 $("#src").value = lsGet("mw.src") || "";
+$("#ph-book").value = lsGet("mw.book") || "";
+$("#ph-author").value = lsGet("mw.author") || "";
 
 /* ---------- PHOTO flow ---------- */
 let photoCtl = null;
@@ -566,7 +621,13 @@ async function readPhoto(wantWords) {
   const flow = $("#photo-flow");
   flow.innerHTML = `<div class="thumb"><img src="${photo.url}" alt="Your page photo"><div style="min-width:0">${THINK("Reading the page… this can take up to a minute.")}<div style="margin-top:8px"><button class="btn-2" type="button" id="ph-stop">Stop</button></div></div></div>`;
   $("#ph-stop").onclick = () => ctl.abort();
+  const book = $("#ph-book").value.trim().slice(0, 120), author = $("#ph-author").value.trim().slice(0, 80);
+  lsSet("mw.book", book); lsSet("mw.author", author);
+  const bookLine = book || author
+    ? `The reader says this page is from ${book ? `"${book}"` : "a book"}${author ? ` by ${author}` : ""}. Use what you know about this book and author (the story so far, characters, setting, historical period, the author's themes and style) to explain the passage in context. If you don't recognise the book, say so in "context" in one sentence and explain from the page alone. Never invent plot details you're unsure of.`
+    : `No title or author was given. If you clearly recognise the book from the text, you may use what you know about it and name it in "context"; otherwise explain from the page alone.`;
   const prompt = `The image is a photo of a page (or two) from a book someone is reading.
+${bookLine}
 ${wantWords ? `1. Find words the reader may want to look up.
    - First, every word or short phrase that is underlined, circled, highlighted, bracketed or marked in the margin by pen, pencil or highlighter. Mark these "marked": true, in reading order.
    - If nothing is marked, choose up to 6 words a typical adult reader would most likely stop at (uncommon, literary, archaic, technical or foreign words), in reading order, "marked": false. Skip proper names unless marked.
@@ -576,7 +637,9 @@ ${wantWords ? `1. Find words the reader may want to look up.
 Reply with only a JSON object:
 {"readable": true,
  "summary": "2 to 4 short paragraphs separated by \\n\\n",
+ "context": "one short paragraph on where this passage sits in the book and why it matters, or null if you don't know the book",
  "notes": [{"phrase": "a tricky phrase from the page", "meaning": "what it means here"}],
+ "searchQuery": "a short Google search (under 10 words) that would help the reader learn more about this passage, e.g. book title + character or event",
  "words": [${wantWords ? '{"word": "as written on the page", "marked": true, "sentence": "the full sentence"}' : ""}]}
 Up to 5 notes. ${wantWords ? "" : 'Leave "words" empty. '}If the text is unreadable or the image is not a page of text, reply {"readable": false, "problem": "one sentence saying what is wrong and how to retake the photo"}.`;
   let x;
@@ -594,9 +657,12 @@ Up to 5 notes. ${wantWords ? "" : 'Leave "words" empty. '}If the text is unreada
   const words = wantWords && Array.isArray(x.words) ? x.words.filter((w) => w && typeof w.word === "string" && w.word.trim()).slice(0, 12) : [];
   const notes = Array.isArray(x.notes) ? x.notes.filter((n) => n && n.phrase && n.meaning).slice(0, 6) : [];
   const paras = String(x.summary || "").split(/\n\s*\n/).filter(Boolean);
+  const googleQ = String(x.searchQuery || [book, author].filter(Boolean).join(" ")).slice(0, 150).trim();
   flow.innerHTML = `<div class="explain"><div class="eyebrow row" style="justify-content:space-between"><span class="label">About this passage</span><span class="small muted">Not saved</span></div>
       ${paras.map((p) => `<p>${esc(p)}</p>`).join("")}
+      ${x.context ? `<div class="label" style="margin-top:4px">In the book</div><p>${esc(x.context)}</p>` : ""}
       ${notes.length ? `<div class="label" style="margin-top:4px">Tricky bits</div><ul>${notes.map((n) => `<li><b>${esc(n.phrase)}</b>: ${esc(n.meaning)}</li>`).join("")}</ul>` : ""}
+      ${googleQ ? `<div><a class="btn-2 icon-btn" style="text-decoration:none;display:inline-flex;border:1px solid var(--rule);border-radius:8px;padding:10px 14px" href="https://www.google.com/search?q=${encodeURIComponent(googleQ)}" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></svg>Search on Google</a></div>` : ""}
     </div>
     <div id="ph-step"></div>
     <div id="ph-entry" class="stack"></div>`;
@@ -632,7 +698,7 @@ function stepSuggestions(words, i) {
     else if (a === "other") askOwnWord(words, i, w.sentence || "");
     else {
       box.querySelectorAll("button").forEach((x) => x.disabled = true);
-      lookup(w.word, { sentence: w.sentence || "", quote: w.sentence || "", source: $("#src").value.trim(), target: entryBox,
+      lookup(w.word, { sentence: w.sentence || "", quote: w.sentence || "", source: photoSource(), target: entryBox,
         onDone: { label: i + 1 < words.length ? "Next suggestion" : "Done", fn: next } });
     }
   });
@@ -650,9 +716,15 @@ function askOwnWord(words, i, sentence) {
     const v = $("#own-w").value.trim(); if (!v) return;
     box.innerHTML = "";
     const inSentence = sentence && sentence.toLowerCase().includes(v.toLowerCase());
-    lookup(v, { sentence: inSentence ? sentence : "", quote: inSentence ? sentence : "", source: $("#src").value.trim(), target: $("#ph-entry"),
+    lookup(v, { sentence: inSentence ? sentence : "", quote: inSentence ? sentence : "", source: photoSource(), target: $("#ph-entry"),
       onDone: { label: i < words.length ? "Back to suggestions" : "Done", fn: () => stepSuggestions(words, i) } });
   };
+}
+
+function photoSource() {
+  const book = $("#ph-book").value.trim(), author = $("#ph-author").value.trim();
+  if (book && author) return `${book} by ${author}`;
+  return book || author || $("#src").value.trim();
 }
 
 /* ---------- saving ---------- */
@@ -660,7 +732,11 @@ async function saveEntry(entry) {
   const uid = S.me.id;
   if (!S.userDocs.has(uid)) await S.db.doc("words/" + uid).set({ joinedAt: Date.now() });
   const ref = S.db.collection("words/" + uid + "/items").doc();
-  await ref.set({ ...entry, addedBy: uid, addedAt: Date.now() });
+  const body = {};
+  for (const [k, v] of Object.entries(entry)) if (!k.startsWith("_")) body[k] = v;
+  await ref.set({ ...body, addedBy: uid, addedAt: Date.now() });
+  entry._ref = ref; // a drawing that finishes after saving is added to this word
+  if (entry.picture && !body.picture) await ref.update({ picture: entry.picture });
 }
 
 /* ---------- WORDS view ---------- */
@@ -717,7 +793,8 @@ function wordBody(it) {
       <button type="button" class="btn-2" data-edit>Edit</button>
       <button type="button" class="${S.armedDelete === keyOf(it) ? "btn-danger" : "btn-2"}" data-del>${S.armedDelete === keyOf(it) ? "Tap again to delete" : "Delete"}</button>
     </div>` : "";
-  return entryHtml(it, { footer: `<div class="byline">Added by ${esc(nameOf(it.addedBy))}${added ? " on " + added : ""}</div>${stats}${owner}` });
+  const draw = !it.picture && S.sample && (it._uid === S.me.id || S.me.isOwner) ? `<div><button type="button" class="btn-2" data-draw>Draw a picture</button></div>` : "";
+  return entryHtml(it, { footer: `${draw}<div class="byline">Added by ${esc(nameOf(it.addedBy))}${added ? " on " + added : ""}</div>${stats}${owner}` });
 }
 
 function editHtml(it) {
@@ -736,6 +813,13 @@ $("#word-list").addEventListener("click", async (ev) => {
   const k = li.dataset.k; const it = S.items.get(k); if (!it) return;
   if (ev.target.closest(".wl-head")) {
     S.open = S.open === k ? null : k; S.editing = null; S.armedDelete = null; renderWords(); return;
+  }
+  const drawBtn = ev.target.closest("[data-draw]");
+  if (drawBtn) {
+    drawBtn.disabled = true; drawBtn.textContent = "Drawing…";
+    try { const svg = await drawPicture(it); await S.db.doc(`words/${it._uid}/items/${it._id}`).update({ picture: svg }); }
+    catch { drawBtn.disabled = false; drawBtn.textContent = "Couldn't draw. Try again"; }
+    return;
   }
   if (ev.target.closest("[data-edit]")) { S.editing = k; renderWords(); return; }
   if (ev.target.closest("[data-cancel]")) { S.editing = null; renderWords(); return; }
@@ -895,7 +979,7 @@ function showQ() {
       const pick = +b.dataset.c, ok = pick === q.answer;
       area.querySelectorAll("[data-c]").forEach((x) => { x.disabled = true; if (+x.dataset.c === q.answer) x.classList.add("right"); });
       if (!ok) b.classList.add("wrong");
-      $("#fb").innerHTML = `<div class="note ${ok ? "good" : "bad"}"><b>${ok ? "Right." : "Not quite."}</b> ${esc(q.explain)}</div><div class="row" style="margin-top:10px"><button class="btn" type="button" id="nx">${P.i + 1 < P.items.length ? "Next" : "See results"}</button></div>`;
+      $("#fb").innerHTML = `<div class="note ${ok ? "good" : "bad"}"><b>${ok ? "Right." : "Not quite."}</b> ${esc(q.explain)}</div>${picHtml(it)}<div class="row" style="margin-top:10px"><button class="btn" type="button" id="nx">${P.i + 1 < P.items.length ? "Next" : "See results"}</button></div>`;
       recordAnswer(it, ok ? "right" : "wrong");
       $("#nx").onclick = () => { P.i++; showQ(); };
       $("#nx").focus();
@@ -927,7 +1011,7 @@ Reply with only JSON: {"verdict": "correct" | "almost" | "incorrect", "feedback"
       const v = ["correct", "almost", "incorrect"].includes(r?.verdict) ? r.verdict : "almost";
       const cls = { correct: "good", almost: "warn", incorrect: "bad" }[v];
       const head = { correct: "Well used.", almost: "Nearly there.", incorrect: "Not quite." }[v];
-      $("#fb").innerHTML = `<div class="note ${cls}"><b>${head}</b> ${esc(r?.feedback || "")}${r?.better ? `<div style="margin-top:6px;font-family:var(--serif)"><i>Try:</i> ${esc(r.better)}</div>` : ""}</div>
+      $("#fb").innerHTML = `<div class="note ${cls}"><b>${head}</b> ${esc(r?.feedback || "")}${r?.better ? `<div style="margin-top:6px;font-family:var(--serif)"><i>Try:</i> ${esc(r.better)}</div>` : ""}</div>${picHtml(it)}
         <div class="row" style="margin-top:10px"><button class="btn" type="button" id="nx">${P.i + 1 < P.items.length ? "Next" : "See results"}</button></div>`;
       $("#sent").readOnly = true;
       recordAnswer(it, v === "correct" ? "right" : v === "incorrect" ? "wrong" : "neutral");
