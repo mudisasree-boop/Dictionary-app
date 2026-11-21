@@ -6,7 +6,6 @@ Keep the words you meet in books. Look one up, save it to a shared list, and pra
 
 ## What it does
 - **Look up:** type a word (plus where you found it and the sentence, optionally) to get a dictionary entry with meanings, IPA, a Listen button, examples, synonyms, origin and usage tips.
-- **Pictures:** Claude draws a simple illustration for each word you look up. It's saved with the word and shown in the entry and after you answer in Practice. Older words get a "Draw a picture" button.
 - **Page photo:** take or choose a photo of a page. Claude suggests one word at a time, with underlined or circled words first. You can look it up, skip it or pick a different word. Claude also explains the passage. You can add the book title and author (both optional) so Claude can explain it in the context of the book, and a "Search on Google" button opens a related search. Choose "No words, only explanation" to save nothing. The photo and explanation are never stored.
 - **Shared list:** one word list for everyone the page is shared with. Each word shows who added it. Only the owner sees Edit and Delete.
 - **Practice:** Mixed, Fill in the blank, Situations (pick the scenario that fits the word), Meanings, and Write a sentence (with Claude's feedback). Choose 5, 10 or 15 words: weakest first, most recent, or any. Progress is shared, and a word counts as mastered after 3 right answers in a row.

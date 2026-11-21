@@ -127,10 +127,6 @@ dl.meta dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .st-learning { color: var(--warn); background: var(--warn-soft); }
 .st-mastered { color: var(--good); background: var(--good-soft); }
 
-/* Claude's drawing for a word */
-.pic { margin: 0; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: var(--paper); aspect-ratio: 16 / 10; max-width: 100%; }
-.pic img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.pic-wait { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; padding: 12px; }
 .book-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 @media (max-width: 360px) { .book-row { grid-template-columns: 1fr; } }
 /* Photo */
@@ -402,7 +398,6 @@ function entryHtml(e, opts = {}) {
     ${opts.eyebrow ? `<div class="eyebrow"><span class="label">${esc(opts.eyebrow)}</span>${opts.badge || ""}</div>` : ""}
     <h3 class="hw">${esc(e.headword)}</h3>
     <div class="pron">${e.syllables ? `<span class="syl">${esc(e.syllables)}</span>` : ""}${e.ipa ? `<span class="ipa">${esc(e.ipa)}</span>` : ""}${speakBtn}</div>
-    ${e.picture ? picHtml(e) : opts.picSlot ? `<div class="pic pic-wait" data-pic>${THINK("Drawing a picture…")}</div>` : ""}
     ${e.inContext ? `<div class="ctx"><span class="label">In your sentence</span><br>${esc(e.inContext)}</div>` : ""}
     ${groups.map((g) => `<div class="pos-group"><div class="pos">${esc(g.pos || "")}</div><ol class="senses">${g.list.map((s) => `<li><div class="def">${esc(s.definition)}</div>${s.example ? `<div class="ex">${esc(s.example)}</div>` : ""}</li>`).join("")}</ol></div>`).join("")}
     ${e.quote ? `<div class="quote">${quoteHtml(e.quote, e.headword)}</div>` : ""}
@@ -460,46 +455,6 @@ Reply with only a JSON object of this shape:
 Give 1 to 4 senses, most common first${sentence ? ", but put the sense used in the reader's sentence first" : ""}.
 If it is not an English word or looks misspelled, reply {"found": false, "suggestions": ["up to 4 words they probably meant"]}.`;
   return S.sample.json(prompt, { modelTier: "quick", signal });
-}
-
-/* ---------- pictures ---------- */
-function cleanSvg(t) {
-  const m = String(t || "").match(/<svg[\s\S]*<\/svg>/i);
-  if (!m || m[0].length > 20000) throw { code: "bad_svg" };
-  let svg = m[0]
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "")
-    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*')/gi, "");
-  if (!/xmlns=/.test(svg.slice(0, 300))) svg = svg.replace(/<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
-  return svg;
-}
-const picSrc = (svg) => "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
-function picHtml(e) {
-  return e && e.picture ? `<figure class="pic"><img src="${picSrc(e.picture)}" alt="Drawing for “${esc(e.headword)}”"></figure>` : "";
-}
-async function drawPicture(entry, signal) {
-  const s0 = (entry.senses || [])[0] || {};
-  const prompt = `Draw a simple illustration that helps a reader remember the English word "${entry.headword}" (${s0.pos || ""}: ${s0.definition || ""}).
-Reply with only one SVG element and nothing else:
-- Open with <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200">.
-- First draw a <rect> filling the whole canvas in a soft, light background colour.
-- Flat, friendly illustration style: bold simple shapes, a small harmonious palette, dark outlines where they help.
-- No words, letters or numbers anywhere in the picture.
-- For a concrete word, draw the thing or action clearly. For an abstract word, draw a small scene or visual metaphor that captures the idea.
-- Keep it under 6000 characters. No scripts, external images, fonts or links.`;
-  const { text } = await S.sample(prompt, { signal, cache: { gcTime: 86400000 } });
-  return cleanSvg(text);
-}
-function startDrawing(entry, slot) {
-  drawPicture(entry).then((svg) => {
-    entry.picture = svg;
-    if (slot.isConnected) slot.outerHTML = picHtml(entry);
-    if (entry._ref) entry._ref.update({ picture: svg }).catch(() => {});
-  }).catch((e) => {
-    if (!slot.isConnected) return;
-    slot.innerHTML = `<span class="small muted">${e && e.code === "bad_svg" ? "The drawing didn't come out right." : esc(aiError(e))}</span><button type="button" class="btn-ghost">Try again</button>`;
-    slot.querySelector("button").onclick = () => { slot.innerHTML = THINK("Drawing a picture…"); startDrawing(entry, slot); };
-  });
 }
 
 /* ---------- LOOK UP view ---------- */
@@ -560,9 +515,7 @@ function renderLookupResult(entry, target, onDone) {
     footer = `<div class="row"><button type="button" class="btn" data-save>Save to the list</button><span class="small muted" data-save-msg></span></div>`;
   }
   if (onDone) footer += `<div class="row"><button type="button" class="btn-2" data-next>${esc(onDone.label)}</button></div>`;
-  target.innerHTML = entryHtml(entry, { eyebrow: "Dictionary entry", footer, picSlot: !existing && !entry.picture && !!S.sample });
-  const slot = $("[data-pic]", target);
-  if (slot) startDrawing(entry, slot);
+  target.innerHTML = entryHtml(entry, { eyebrow: "Dictionary entry", footer });
   const saveBtn = $("[data-save]", target);
   if (saveBtn) saveBtn.onclick = async () => {
     saveBtn.disabled = true; saveBtn.textContent = "Saving…";
@@ -732,11 +685,7 @@ async function saveEntry(entry) {
   const uid = S.me.id;
   if (!S.userDocs.has(uid)) await S.db.doc("words/" + uid).set({ joinedAt: Date.now() });
   const ref = S.db.collection("words/" + uid + "/items").doc();
-  const body = {};
-  for (const [k, v] of Object.entries(entry)) if (!k.startsWith("_")) body[k] = v;
-  await ref.set({ ...body, addedBy: uid, addedAt: Date.now() });
-  entry._ref = ref; // a drawing that finishes after saving is added to this word
-  if (entry.picture && !body.picture) await ref.update({ picture: entry.picture });
+  await ref.set({ ...entry, addedBy: uid, addedAt: Date.now() });
 }
 
 /* ---------- WORDS view ---------- */
@@ -793,8 +742,7 @@ function wordBody(it) {
       <button type="button" class="btn-2" data-edit>Edit</button>
       <button type="button" class="${S.armedDelete === keyOf(it) ? "btn-danger" : "btn-2"}" data-del>${S.armedDelete === keyOf(it) ? "Tap again to delete" : "Delete"}</button>
     </div>` : "";
-  const draw = !it.picture && S.sample && (it._uid === S.me.id || S.me.isOwner) ? `<div><button type="button" class="btn-2" data-draw>Draw a picture</button></div>` : "";
-  return entryHtml(it, { footer: `${draw}<div class="byline">Added by ${esc(nameOf(it.addedBy))}${added ? " on " + added : ""}</div>${stats}${owner}` });
+  return entryHtml(it, { footer: `<div class="byline">Added by ${esc(nameOf(it.addedBy))}${added ? " on " + added : ""}</div>${stats}${owner}` });
 }
 
 function editHtml(it) {
@@ -813,13 +761,6 @@ $("#word-list").addEventListener("click", async (ev) => {
   const k = li.dataset.k; const it = S.items.get(k); if (!it) return;
   if (ev.target.closest(".wl-head")) {
     S.open = S.open === k ? null : k; S.editing = null; S.armedDelete = null; renderWords(); return;
-  }
-  const drawBtn = ev.target.closest("[data-draw]");
-  if (drawBtn) {
-    drawBtn.disabled = true; drawBtn.textContent = "Drawing…";
-    try { const svg = await drawPicture(it); await S.db.doc(`words/${it._uid}/items/${it._id}`).update({ picture: svg }); }
-    catch { drawBtn.disabled = false; drawBtn.textContent = "Couldn't draw. Try again"; }
-    return;
   }
   if (ev.target.closest("[data-edit]")) { S.editing = k; renderWords(); return; }
   if (ev.target.closest("[data-cancel]")) { S.editing = null; renderWords(); return; }
@@ -979,7 +920,7 @@ function showQ() {
       const pick = +b.dataset.c, ok = pick === q.answer;
       area.querySelectorAll("[data-c]").forEach((x) => { x.disabled = true; if (+x.dataset.c === q.answer) x.classList.add("right"); });
       if (!ok) b.classList.add("wrong");
-      $("#fb").innerHTML = `<div class="note ${ok ? "good" : "bad"}"><b>${ok ? "Right." : "Not quite."}</b> ${esc(q.explain)}</div>${picHtml(it)}<div class="row" style="margin-top:10px"><button class="btn" type="button" id="nx">${P.i + 1 < P.items.length ? "Next" : "See results"}</button></div>`;
+      $("#fb").innerHTML = `<div class="note ${ok ? "good" : "bad"}"><b>${ok ? "Right." : "Not quite."}</b> ${esc(q.explain)}</div><div class="row" style="margin-top:10px"><button class="btn" type="button" id="nx">${P.i + 1 < P.items.length ? "Next" : "See results"}</button></div>`;
       recordAnswer(it, ok ? "right" : "wrong");
       $("#nx").onclick = () => { P.i++; showQ(); };
       $("#nx").focus();
@@ -1011,7 +952,7 @@ Reply with only JSON: {"verdict": "correct" | "almost" | "incorrect", "feedback"
       const v = ["correct", "almost", "incorrect"].includes(r?.verdict) ? r.verdict : "almost";
       const cls = { correct: "good", almost: "warn", incorrect: "bad" }[v];
       const head = { correct: "Well used.", almost: "Nearly there.", incorrect: "Not quite." }[v];
-      $("#fb").innerHTML = `<div class="note ${cls}"><b>${head}</b> ${esc(r?.feedback || "")}${r?.better ? `<div style="margin-top:6px;font-family:var(--serif)"><i>Try:</i> ${esc(r.better)}</div>` : ""}</div>${picHtml(it)}
+      $("#fb").innerHTML = `<div class="note ${cls}"><b>${head}</b> ${esc(r?.feedback || "")}${r?.better ? `<div style="margin-top:6px;font-family:var(--serif)"><i>Try:</i> ${esc(r.better)}</div>` : ""}</div>
         <div class="row" style="margin-top:10px"><button class="btn" type="button" id="nx">${P.i + 1 < P.items.length ? "Next" : "See results"}</button></div>`;
       $("#sent").readOnly = true;
       recordAnswer(it, v === "correct" ? "right" : v === "incorrect" ? "wrong" : "neutral");
