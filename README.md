@@ -8,7 +8,7 @@ Keep the words you meet in books. Look one up, save it to a shared list, and pra
 - **Look up:** type a word (plus where you found it and the sentence, optionally) to get a dictionary entry with meanings, IPA, a Listen button, examples, synonyms, origin and usage tips.
 - **Page photo:** take or choose a photo of a page. Claude suggests one word at a time, with underlined or circled words first. You can look it up, skip it or pick a different word. Claude also explains the passage. Choose "No words, only explanation" to save nothing. The photo and explanation are never stored.
 - **Shared list:** one word list for everyone the page is shared with. Each word shows who added it. Only the owner sees Edit and Delete.
-- **Practise:** flashcards, multiple choice, fill in the blank, and "use it in a sentence" with Claude's feedback. Choose how many words and which ones. Progress is shared, and a word counts as mastered after 3 right answers in a row.
+- **Practice:** Mixed, Fill in the blank, Situations (pick the scenario that fits the word), Meanings, and Write a sentence (with Claude's feedback). Choose 5, 10 or 15 words: weakest first, most recent, or any. Choose how many words and which ones. Progress is shared, and a word counts as mastered after 3 right answers in a row.
 
 ## How it's built
 One HTML file with no build step, using claude.ai artifact runtime capabilities:

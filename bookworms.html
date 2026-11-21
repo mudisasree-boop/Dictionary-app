@@ -170,8 +170,6 @@ ul.words > li { border-bottom: 1px solid var(--rule); }
 .choices button { text-align: left; background: var(--paper); border-color: var(--rule); color: var(--ink); font-family: var(--serif); padding: 12px 14px; }
 .choices button.right { background: var(--good-soft); border-color: var(--good); }
 .choices button.wrong { background: var(--bad-soft); border-color: var(--bad); }
-.flash { text-align: center; align-items: center; justify-content: center; }
-.flash .hw { font-size: 2.2rem; }
 .score { font: 700 3rem var(--serif); font-variant-numeric: tabular-nums; }
 ul.results { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
 ul.results li { display: flex; justify-content: space-between; gap: 10px; font-family: var(--serif); }
@@ -254,30 +252,30 @@ nav.tabs a:focus-visible { outline: 2px solid var(--pencil); outline-offset: -4p
 
   <!-- PRACTISE -->
   <section class="view" id="view-practise" hidden aria-labelledby="t-practise">
-    <h2 id="t-practise">Practise</h2>
+    <h2 id="t-practise">Practice</h2>
     <form class="panel" id="practise-setup">
       <div class="label">Exercise type</div>
       <div class="chips" role="radiogroup" aria-label="Exercise type">
-        <label class="chip"><input type="radio" name="ex" value="flash" checked><span>Flashcards</span></label>
-        <label class="chip"><input type="radio" name="ex" value="mc"><span>Multiple choice</span></label>
+        <label class="chip"><input type="radio" name="ex" value="mixed" checked><span>Mixed</span></label>
         <label class="chip"><input type="radio" name="ex" value="blank"><span>Fill in the blank</span></label>
-        <label class="chip"><input type="radio" name="ex" value="sentence"><span>Use it in a sentence</span></label>
+        <label class="chip"><input type="radio" name="ex" value="situation"><span>Situations</span></label>
+        <label class="chip"><input type="radio" name="ex" value="meaning"><span>Meanings</span></label>
+        <label class="chip"><input type="radio" name="ex" value="sentence"><span>Write a sentence</span></label>
       </div>
       <div class="label">How many</div>
       <div class="chips" role="radiogroup" aria-label="How many">
         <label class="chip"><input type="radio" name="n" value="5" checked><span>5</span></label>
         <label class="chip"><input type="radio" name="n" value="10"><span>10</span></label>
-        <label class="chip"><input type="radio" name="n" value="20"><span>20</span></label>
+        <label class="chip"><input type="radio" name="n" value="15"><span>15</span></label>
       </div>
       <div class="label">Which words</div>
       <div class="chips" role="radiogroup" aria-label="Which words">
-        <label class="chip"><input type="radio" name="which" value="learning" checked><span>Not mastered yet</span></label>
+        <label class="chip"><input type="radio" name="which" value="weak" checked><span>Weakest first</span></label>
         <label class="chip"><input type="radio" name="which" value="recent"><span>Most recent</span></label>
-        <label class="chip"><input type="radio" name="which" value="all"><span>Any word</span></label>
-        <label class="chip"><input type="radio" name="which" value="mine"><span>Added by me</span></label>
+        <label class="chip"><input type="radio" name="which" value="any"><span>Any</span></label>
       </div>
       <p class="small muted" style="margin:0" id="practise-count"></p>
-      <button class="btn" type="submit" id="practise-go">Start</button>
+      <button class="btn" type="submit" id="practise-go">Start practice</button>
       <p class="small muted" style="margin:0">A word counts as mastered after 3 right answers in a row. Progress is shared by everyone using this list.</p>
     </form>
     <div id="practise-area" class="stack"></div>
@@ -290,7 +288,7 @@ nav.tabs a:focus-visible { outline: 2px solid var(--pencil); outline-offset: -4p
   <div class="in">
     <a href="#lookup" data-tab="lookup"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></svg><span>Look up</span></a>
     <a href="#words" data-tab="words"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/><path d="M9 8h6"/></svg><span>Words</span></a>
-    <a href="#practise" data-tab="practise"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="13" height="15" rx="2"/><path d="M8 3h10a2 2 0 0 1 2 2v12"/><path d="m8 13 2 2 4-4"/></svg><span>Practise</span></a>
+    <a href="#practise" data-tab="practise"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="13" height="15" rx="2"/><path d="M8 3h10a2 2 0 0 1 2 2v12"/><path d="m8 13 2 2 4-4"/></svg><span>Practice</span></a>
   </div>
 </nav>
 
@@ -789,10 +787,10 @@ const P = { type: null, items: [], i: 0, results: [], qs: null, ctl: null };
 
 function pickWords(which, n) {
   let list = [...S.items.values()];
-  if (which === "mine") list = list.filter((it) => it._uid === S.me.id);
-  if (which === "learning") {
-    list = list.filter((it) => statusOf(it) !== "mastered");
-    list.sort((a, b) => (S.progress.get(progKey(a))?.last || 0) - (S.progress.get(progKey(b))?.last || 0));
+  if (which === "weak") {
+    // Lowest current streak first, then lowest accuracy (new words count as 50%), then least recently practised.
+    const score = (it) => { const x = S.progress.get(progKey(it)); return x ? [x.streak || 0, x.seen ? x.correct / x.seen : 0.5, x.last || 0] : [0, 0.5, 0]; };
+    list.sort((a, b) => { const A = score(a), B = score(b); return A[0] - B[0] || A[1] - B[1] || A[2] - B[2]; });
     return shuffle(list.slice(0, n));
   }
   if (which === "recent") { list.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0)); return shuffle(list.slice(0, n)); }
@@ -805,7 +803,7 @@ function updatePractiseCount() {
   const avail = pickWords(which, 1000).length;
   const el = $("#practise-count");
   if (!S.items.size) el.textContent = "Save a few words first, then come back to practise.";
-  else if (!avail) el.textContent = which === "learning" ? "Every word is mastered. Pick “Any word” to review." : "No words match that choice.";
+  else if (!avail) el.textContent = "No words match that choice.";
   else el.textContent = `${Math.min(n, avail)} word${Math.min(n, avail) === 1 ? "" : "s"} ready.`;
   $("#practise-go").disabled = !avail;
 }
@@ -832,20 +830,25 @@ $("#practise-setup").addEventListener("submit", async (ev) => {
   const which = document.querySelector('input[name="which"]:checked').value;
   const items = pickWords(which, n);
   if (!items.length) return;
-  Object.assign(P, { type, items, i: 0, results: [], qs: null });
+  const KINDS = ["meaning", "blank", "situation", "sentence"];
+  const types = type === "mixed" ? items.map((_, i) => KINDS[i % KINDS.length]) : items.map(() => type);
+  Object.assign(P, { type, items, types: shuffle(types), i: 0, results: [], qs: {} });
   $("#practise-setup").hidden = true;
   const area = $("#practise-area");
-  if ((type === "mc" || type === "blank")) {
-    if (!S.sample) { area.innerHTML = `<div class="note warn">This exercise needs Claude. ${esc(noClaudeText)} Flashcards work without it.</div>${backBtn()}`; bindBack(); return; }
+  if (!S.sample) { area.innerHTML = `<div class="note warn">${esc(noClaudeText)}</div>${backBtn()}`; bindBack(); return; }
+  const needQs = P.items.map((it, i) => ({ it, kind: P.types[i] })).filter((x) => x.kind !== "sentence");
+  if (needQs.length) {
     P.ctl = new AbortController();
     area.innerHTML = `<div class="card-q">${THINK("Writing your questions…")}<div><button class="btn-2" type="button" id="q-stop">Cancel</button></div></div>`;
     $("#q-stop").onclick = () => P.ctl.abort();
-    try { P.qs = await makeQuestions(type, items, P.ctl.signal); }
+    try { P.qs = await makeQuestions(needQs, P.ctl.signal); }
     catch (e) {
       area.innerHTML = e && e.code === "cancelled" ? "" : `<div class="note bad">${esc(aiError(e))}</div>`;
       area.innerHTML += backBtn(); bindBack(); return;
     }
-    P.items = items.filter((it) => P.qs[keyOf(it)]);
+    const keep = P.items.map((it, i) => P.types[i] === "sentence" || P.qs[keyOf(it)]);
+    P.items = P.items.filter((_, i) => keep[i]);
+    P.types = P.types.filter((_, i) => keep[i]);
     if (!P.items.length) { area.innerHTML = `<div class="note bad">Claude's questions came back incomplete. Try again.</div>${backBtn()}`; bindBack(); return; }
   }
   showQ();
@@ -855,23 +858,24 @@ function backBtn() { return `<div><button class="btn-2" type="button" data-back>
 function bindBack() { const b = document.querySelector("#practise-area [data-back]"); if (b) b.onclick = endPractise; }
 function endPractise() { if (P.ctl) P.ctl.abort(); $("#practise-area").innerHTML = ""; $("#practise-setup").hidden = false; updatePractiseCount(); }
 
-async function makeQuestions(type, items, signal) {
-  const list = items.map((it, i) => ({ n: i + 1, word: it.headword, pos: it.senses?.[0]?.pos || "", meaning: it.senses?.[0]?.definition || "" }));
-  const spec = type === "mc"
-    ? `Write one multiple-choice question per word. Alternate the direction: odd-numbered words ask "What does “WORD” mean?" with 4 meanings as choices; even-numbered words give the meaning and ask which word fits, with 4 words as choices (plausible real words of the same part of speech). Wrong choices should be believable but clearly wrong.
-Each item: {"n": number, "question": "...", "choices": ["4 strings"], "answer": index of the right choice 0-3, "explain": "one sentence on why"}`
-    : `Write one fill-in-the-blank question per word: a NEW natural sentence (not a dictionary example) where the word fits, with the word replaced by "_____". Give 4 choices: the word (in the form the sentence needs) and 3 believable real words in the same form that do not fit the meaning.
-Each item: {"n": number, "question": "the sentence with _____", "choices": ["4 strings"], "answer": index of the right choice 0-3, "explain": "one sentence on why it fits"}`;
+const KIND_LABEL = { meaning: "Meanings", blank: "Fill in the blank", situation: "Situations", sentence: "Write a sentence" };
+
+async function makeQuestions(list, signal) {
+  const rows = list.map(({ it, kind }, i) => ({ n: i + 1, type: kind, word: it.headword, pos: it.senses?.[0]?.pos || "", meaning: it.senses?.[0]?.definition || "" }));
   const prompt = `You write vocabulary exercises for an adult reader. Use the meaning given for each word.
-Words: ${JSON.stringify(list)}
-${spec}
+Words: ${JSON.stringify(rows)}
+Write one question per word, following its "type":
+- "meaning": if n is odd, ask "What does “WORD” mean?" with 4 meanings as choices; if n is even, give the meaning and ask which word fits it, with 4 words as choices (plausible real words of the same part of speech). Wrong choices should be believable but clearly wrong.
+- "blank": a NEW natural sentence (not a dictionary example) where the word fits, with the word replaced by "_____". Choices: the word in the form the sentence needs plus 3 believable real words in the same form that don't fit the meaning.
+- "situation": ask "Which situation best shows “WORD”?" and give 4 short, concrete everyday situations (one or two sentences each, never using the word itself). Exactly one clearly illustrates the word's meaning; the others are near misses.
+Each item: {"n": number, "question": "...", "choices": ["4 strings"], "answer": index of the right choice 0-3, "explain": "one sentence on why"}
 Put the right answer in a random position. Reply with only a JSON array, one item per word.`;
   const arr = await S.sample.json(prompt, { modelTier: "quick", cache: false, signal });
   const out = {};
   if (Array.isArray(arr)) for (const q of arr) {
-    const it = items[(+q?.n || 0) - 1];
-    if (!it || !Array.isArray(q.choices) || q.choices.length < 2 || !(q.answer >= 0 && q.answer < q.choices.length)) continue;
-    out[keyOf(it)] = { question: String(q.question || ""), choices: q.choices.map(String).slice(0, 4), answer: +q.answer, explain: String(q.explain || "") };
+    const row = list[(+q?.n || 0) - 1];
+    if (!row || !Array.isArray(q.choices) || q.choices.length < 2 || !(q.answer >= 0 && q.answer < q.choices.length)) continue;
+    out[keyOf(row.it)] = { question: String(q.question || ""), choices: q.choices.map(String).slice(0, 4), answer: +q.answer, explain: String(q.explain || "") };
   }
   return out;
 }
@@ -881,17 +885,11 @@ function showQ() {
   if (P.i >= P.items.length) return showDone();
   const it = P.items[P.i];
   const bar = `<div class="row" style="justify-content:space-between"><span class="small muted">${P.i + 1} of ${P.items.length}</span><button class="btn-ghost" type="button" data-quit>End session</button></div><div class="progress-bar"><i style="width:${(P.i / P.items.length) * 100}%"></i></div>`;
-  if (P.type === "flash") {
-    area.innerHTML = `${bar}<div class="card-q flash" id="fc"><div class="hw">${esc(it.headword)}</div><div class="pron" style="justify-content:center">${it.ipa ? `<span class="ipa">${esc(it.ipa)}</span>` : ""}${canSpeak() ? `<button type="button" class="btn-ghost icon-btn" data-speak="${esc(it.headword)}">${ICON_SPEAK}Listen</button>` : ""}</div><button class="btn" type="button" id="fc-flip">Show meaning</button></div>`;
-    $("#fc-flip").onclick = () => {
-      area.innerHTML = `${bar}${entryHtml(it, { eyebrow: "Did you know it?" })}<div class="row"><button class="btn" type="button" data-r="right">Knew it</button><button class="btn-2" type="button" data-r="wrong">Still learning</button></div>`;
-      area.querySelectorAll("[data-r]").forEach((b) => b.onclick = () => { answer(it, b.dataset.r); });
-      bindQuit();
-    };
-  } else if (P.type === "mc" || P.type === "blank") {
+  const kind = P.types[P.i];
+  if (kind === "meaning" || kind === "blank" || kind === "situation") {
     const q = P.qs[keyOf(it)];
     const qtext = esc(q.question).replace(/“([^”]+)”/g, "“<b>$1</b>”").replace(/_{3,}/g, "<b>_____</b>");
-    area.innerHTML = `${bar}<div class="card-q"><div class="label">${P.type === "mc" ? "Multiple choice" : "Fill in the blank"}</div><div class="qtext">${qtext}</div>
+    area.innerHTML = `${bar}<div class="card-q"><div class="label">${KIND_LABEL[kind]}</div><div class="qtext">${qtext}</div>
       <div class="choices">${q.choices.map((c, i) => `<button type="button" data-c="${i}">${esc(c)}</button>`).join("")}</div><div id="fb"></div></div>`;
     area.querySelectorAll("[data-c]").forEach((b) => b.onclick = () => {
       const pick = +b.dataset.c, ok = pick === q.answer;
@@ -902,9 +900,9 @@ function showQ() {
       $("#nx").onclick = () => { P.i++; showQ(); };
       $("#nx").focus();
     });
-  } else if (P.type === "sentence") {
+  } else if (kind === "sentence") {
     const first = (it.senses || [])[0] || {};
-    area.innerHTML = `${bar}<form class="card-q" id="sf"><div class="label">Use it in a sentence</div><div class="hw" style="font-size:1.6rem">${esc(it.headword)}</div>
+    area.innerHTML = `${bar}<form class="card-q" id="sf"><div class="label">Write a sentence</div><div class="hw" style="font-size:1.6rem">${esc(it.headword)}</div>
       <div class="muted"><i>${esc(first.pos || "")}</i> ${esc(first.definition || "")}</div>
       <label class="small" for="sent">Your sentence</label><textarea id="sent" placeholder="Write a sentence using “${esc(it.headword)}”"></textarea>
       <div class="row"><button class="btn" type="submit" id="sf-go">Check</button><button class="btn-2" type="button" id="sf-skip">Skip</button></div><div id="fb"></div></form>`;
@@ -941,7 +939,6 @@ Reply with only JSON: {"verdict": "correct" | "almost" | "incorrect", "feedback"
 
 function bindQuit() { const q = document.querySelector("#practise-area [data-quit]"); if (q) q.onclick = () => (P.results.length ? showDone() : endPractise()); }
 
-function answer(it, outcome) { recordAnswer(it, outcome); P.i++; showQ(); }
 function recordAnswer(it, outcome) { P.results.push({ it, outcome }); recordProgress(it, outcome); }
 
 function showDone() {
@@ -1027,10 +1024,10 @@ async function showAccessNote() {
       html = `<div class="note warn">Claude is turned off for this page, so words can't be looked up. <button type="button" class="btn-ghost" id="perm-fix">Turn Claude on</button></div>`;
     } else if (S.canWrite === false) {
       noClaudeText = "You have view-only access, so you can't look up words. To fix it, " + ASK_ACCESS + ".";
-      html = `<div class="note warn"><b>You have view-only access.</b> You can browse the list and practise flashcards. To look up and save words, ${ASK_ACCESS}.</div>`;
+      html = `<div class="note warn"><b>You have view-only access.</b> You can browse the list. To look up and save words, ${ASK_ACCESS}.</div>`;
     } else {
       noClaudeText = "Claude isn't available for your account on this page. Reload, or open the page in the Claude app.";
-      html = `<div class="note warn">Claude isn't available for your account on this page, so you can browse and practise flashcards but not look up words. Reload the page; if it keeps happening, open it in the Claude app.</div>`;
+      html = `<div class="note warn">Claude isn't available for your account on this page, so you can browse the list but not look up words or practise. Reload the page; if it keeps happening, open it in the Claude app.</div>`;
     }
   } else if (S.canWrite === false) {
     html = `<div class="note info">You can look up words and practise. To save words to the shared list, ${ASK_ACCESS}.</div>`;
