@@ -1,4 +1,4 @@
-<title>Margin Words</title>
+<title>Bookworms</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -191,7 +191,7 @@ nav.tabs a:focus-visible { outline: 2px solid var(--pencil); outline-offset: -4p
 
 <div class="wrap">
   <header class="top">
-    <h1 class="brand">Margin <span>Words</span></h1>
+    <h1 class="brand">Book<span>worms</span></h1>
     <div class="sync" id="sync" aria-live="polite">Connecting…</div>
   </header>
   <p class="tagline">Keep the words you meet in books. Look one up, save it to the shared list, and practise until it's yours.</p>
@@ -476,7 +476,7 @@ function nameOf(uid) {
 async function lookup(word, { sentence = "", source = "", quote = "", target = $("#result"), onDone } = {}) {
   word = word.trim();
   if (!word) return;
-  if (!S.sample) { target.innerHTML = `<div class="note warn">Looking up words needs Claude, which isn't available in this view. Open the page on claude.ai while signed in.</div>`; return; }
+  if (!S.sample) { target.innerHTML = `<div class="note warn">${esc(noClaudeText)}</div>`; return; }
   if (lookupCtl) lookupCtl.abort();
   const ctl = new AbortController(); lookupCtl = ctl;
   target.innerHTML = `<div class="panel">${THINK("Looking up “" + word + "”…")}<div><button class="btn-2" type="button" id="stop-lookup">Stop</button></div></div>`;
@@ -836,7 +836,7 @@ $("#practise-setup").addEventListener("submit", async (ev) => {
   $("#practise-setup").hidden = true;
   const area = $("#practise-area");
   if ((type === "mc" || type === "blank")) {
-    if (!S.sample) { area.innerHTML = `<div class="note warn">This exercise needs Claude, which isn't available in this view. Try Flashcards.</div>${backBtn()}`; bindBack(); return; }
+    if (!S.sample) { area.innerHTML = `<div class="note warn">This exercise needs Claude. ${esc(noClaudeText)} Flashcards work without it.</div>${backBtn()}`; bindBack(); return; }
     P.ctl = new AbortController();
     area.innerHTML = `<div class="card-q">${THINK("Writing your questions…")}<div><button class="btn-2" type="button" id="q-stop">Cancel</button></div></div>`;
     $("#q-stop").onclick = () => P.ctl.abort();
@@ -912,7 +912,7 @@ function showQ() {
     $("#sf").onsubmit = async (ev) => {
       ev.preventDefault();
       const s = $("#sent").value.trim(); if (!s) return;
-      if (!S.sample) { $("#fb").innerHTML = `<div class="note warn">Checking needs Claude, which isn't available in this view.</div>`; return; }
+      if (!S.sample) { $("#fb").innerHTML = `<div class="note warn">${esc(noClaudeText)}</div>`; return; }
       $("#sf-go").disabled = true; $("#sf-skip").disabled = true;
       $("#fb").innerHTML = THINK("Checking your sentence…");
       P.ctl = new AbortController();
@@ -1008,6 +1008,42 @@ function startDb() {
   }, () => {});
 }
 
+/* ---------- access guidance ---------- */
+// Says exactly why something is off for this viewer, and what to do about it.
+const ASK_ACCESS = "ask the person who shared it to change your access from “Can view” to Contributor in the page's Share menu, then reload this page";
+let noClaudeText = "Looking up words needs Claude, which isn't available for you on this page.";
+
+async function showAccessNote() {
+  const note = $("#access-note");
+  let html = "";
+  if (!S.me.id) {
+    noClaudeText = "Sign in to claude.ai, then reload this page to look up words.";
+    html = `<div class="note warn">You're not signed in to claude.ai here. Sign in, then reload this page to look up and save words.</div>`;
+  } else if (!S.sample) {
+    let perm = null;
+    try { const p = await window.claude.use("permissions"); if (p) perm = await p.state("sample"); } catch {}
+    if (perm === "denied") {
+      noClaudeText = "Claude is turned off for this page. Use “Turn Claude on” at the top of the page.";
+      html = `<div class="note warn">Claude is turned off for this page, so words can't be looked up. <button type="button" class="btn-ghost" id="perm-fix">Turn Claude on</button></div>`;
+    } else if (S.canWrite === false) {
+      noClaudeText = "You have view-only access, so you can't look up words. To fix it, " + ASK_ACCESS + ".";
+      html = `<div class="note warn"><b>You have view-only access.</b> You can browse the list and practise flashcards. To look up and save words, ${ASK_ACCESS}.</div>`;
+    } else {
+      noClaudeText = "Claude isn't available for your account on this page. Reload, or open the page in the Claude app.";
+      html = `<div class="note warn">Claude isn't available for your account on this page, so you can browse and practise flashcards but not look up words. Reload the page; if it keeps happening, open it in the Claude app.</div>`;
+    }
+  } else if (S.canWrite === false) {
+    html = `<div class="note info">You can look up words and practise. To save words to the shared list, ${ASK_ACCESS}.</div>`;
+  }
+  note.hidden = !html;
+  note.innerHTML = html;
+  const fix = $("#perm-fix");
+  if (fix) fix.onclick = async () => {
+    try { const p = await window.claude.use("permissions"); await p.manage(); note.innerHTML = `<div class="note info">Reload the page to use Claude.</div>`; }
+    catch { note.innerHTML = `<div class="note warn">Open this page's Permissions menu (top of the page) and allow Claude, then reload.</div>`; }
+  };
+}
+
 /* ---------- boot ---------- */
 async function boot() {
   route();
@@ -1038,16 +1074,9 @@ async function boot() {
     $("#photo-pick").hidden = true;
     $("#photo-hint").textContent = sample ? "Photos of pages can't be sent to Claude in this view. Try claude.ai in your phone's browser, or type the word above." : "Claude isn't available in this view, so photos can't be read.";
   }
-  if (!sample) {
-    $("#access-note").hidden = false;
-    $("#access-note").innerHTML = `<div class="note warn">Claude isn't available here, so you can browse and practise flashcards but not look up new words. Sign in on claude.ai to use everything.</div>`;
-  }
+  await showAccessNote();
   if (db) {
     startDb();
-    if (S.canWrite === false) {
-      $("#access-note").hidden = false;
-      $("#access-note").innerHTML = `<div class="note info">You can browse and practise. To add words, ask the person who shared this page for Contributor access.</div>`;
-    }
   } else {
     S.dbReady = "none";
     setSync("Not signed in");

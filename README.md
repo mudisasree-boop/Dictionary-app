@@ -1,8 +1,8 @@
-# Margin Words
+# Bookworms
 
 Keep the words you meet in books. Look one up, save it to a shared list, and practise until it's yours.
 
-**Live app:** https://claude.ai/artifact/52YaZrWWwiCS32tkpHbTBi (a claude.ai page; `margin-words.html` is its source)
+**Live app:** https://claude.ai/artifact/52YaZrWWwiCS32tkpHbTBi (a claude.ai page; `bookworms.html` is its source)
 
 ## What it does
 - **Look up:** type a word (plus where you found it and the sentence, optionally) to get a dictionary entry with meanings, IPA, a Listen button, examples, synonyms, origin and usage tips.
@@ -18,4 +18,4 @@ One HTML file with no build step, using claude.ai artifact runtime capabilities:
 - `tts`: pronunciation, falling back to the browser's speech synthesis on phones.
 
 ## Updating
-Edit `margin-words.html` and republish it to the same artifact URL.
+Edit `bookworms.html` and republish it to the same artifact URL.
