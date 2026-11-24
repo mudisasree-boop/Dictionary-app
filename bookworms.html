@@ -176,10 +176,33 @@ ul.words > li { border-bottom: 1px solid var(--rule); }
 ul.results { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
 ul.results li { display: flex; justify-content: space-between; gap: 10px; font-family: var(--serif); }
 
+/* Conversation */
+.chat { display: flex; flex-direction: column; gap: 12px; }
+.bubble { max-width: 88%; padding: 12px 14px; border-radius: 14px; font-family: var(--serif); line-height: 1.5; overflow-wrap: anywhere; }
+.bubble.claude { align-self: flex-start; background: var(--card); border: 1px solid var(--rule); border-bottom-left-radius: 4px; }
+.bubble.me { align-self: flex-end; background: var(--pencil-soft); border-bottom-right-radius: 4px; white-space: pre-wrap; }
+.bubble .who { font: 600 0.7rem var(--sans); text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+.bubble .who .btn-ghost { padding: 0 2px; font-size: 0.8rem; text-transform: none; letter-spacing: 0; }
+.fb { background: var(--card); border: 1px solid var(--rule); border-left: 3px solid var(--pencil); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; font-size: 0.92rem; }
+.fb ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 6px; }
+.fb .was { text-decoration: line-through; text-decoration-color: var(--bad); color: var(--ink-2); }
+.fb .better { font-family: var(--serif); }
+.wchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.wchip { font: 500 0.85rem var(--serif); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--rule); background: var(--card); color: var(--ink-2); }
+.wchip.used { border-color: var(--pencil); background: var(--pencil-soft); color: var(--ink); }
+.wchip.ok { border-color: var(--good); background: var(--good-soft); color: var(--ink); }
+.wchip.no { border-color: var(--bad); background: var(--bad-soft); color: var(--ink); }
+.composer { display: flex; flex-direction: column; gap: 8px; background: var(--card); border: 1px solid var(--rule); border-radius: var(--r); padding: 12px; }
+.scores { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; align-items: center; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.scores .bar { height: 6px; background: var(--rule); border-radius: 6px; overflow: hidden; }
+.scores .bar i { display: block; height: 100%; background: var(--pencil); }
+ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; }
+ul.hist li { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid var(--rule); padding-bottom: 6px; }
+ul.hist li:last-child { border-bottom: 0; }
 /* Bottom tabs */
 nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--card); border-top: 1px solid var(--rule);
   padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); }
-nav.tabs .in { max-width: 620px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); height: var(--nav-h); }
+nav.tabs .in { max-width: 620px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); height: var(--nav-h); }
 nav.tabs a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--ink-3); text-decoration: none; font-size: 0.75rem; font-weight: 500; }
 nav.tabs a svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 nav.tabs a[aria-current="page"] { color: var(--pencil); }
@@ -287,6 +310,37 @@ nav.tabs a:focus-visible { outline: 2px solid var(--pencil); outline-offset: -4p
     <div id="practise-area" class="stack"></div>
   </section>
 
+  <!-- CONVERSATION -->
+  <section class="view" id="view-talk" hidden aria-labelledby="t-talk">
+    <h2 id="t-talk">Conversation</h2>
+    <form class="panel" id="talk-setup">
+      <div class="label">How many</div>
+      <div class="chips" role="radiogroup" aria-label="How many words">
+        <label class="chip"><input type="radio" name="tn" value="3" checked><span>3</span></label>
+        <label class="chip"><input type="radio" name="tn" value="5"><span>5</span></label>
+        <label class="chip"><input type="radio" name="tn" value="8"><span>8</span></label>
+      </div>
+      <div class="label">Which words</div>
+      <div class="chips" role="radiogroup" aria-label="Which words">
+        <label class="chip"><input type="radio" name="tw" value="weak" checked><span>Weakest first</span></label>
+        <label class="chip"><input type="radio" name="tw" value="recent"><span>Most recent</span></label>
+        <label class="chip"><input type="radio" name="tw" value="any"><span>Any</span></label>
+      </div>
+      <div class="label">How long</div>
+      <div class="chips" role="radiogroup" aria-label="How long">
+        <label class="chip"><input type="radio" name="tl" value="1"><span>Once</span></label>
+        <label class="chip"><input type="radio" name="tl" value="2" checked><span>Twice</span></label>
+        <label class="chip"><input type="radio" name="tl" value="3"><span>Three times</span></label>
+        <label class="chip"><input type="radio" name="tl" value="0"><span>Until I stop</span></label>
+      </div>
+      <p class="small muted" style="margin:0">One round: Claude says something, you reply using at least 2 of your words, and Claude gives feedback before carrying on.</p>
+      <p class="small muted" style="margin:0" id="talk-count"></p>
+      <button class="btn" type="submit" id="talk-go">Start conversation</button>
+    </form>
+    <div id="talk-history"></div>
+    <div id="talk-area" class="stack"></div>
+  </section>
+
   <p class="footnote">Everyone using this link shares one word list. Meanings and exercises are written by Claude, so double-check anything that matters.</p>
 </div>
 
@@ -295,6 +349,7 @@ nav.tabs a:focus-visible { outline: 2px solid var(--pencil); outline-offset: -4p
     <a href="#lookup" data-tab="lookup"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></svg><span>Look up</span></a>
     <a href="#words" data-tab="words"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/><path d="M9 8h6"/></svg><span>Words</span></a>
     <a href="#practise" data-tab="practise"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="13" height="15" rx="2"/><path d="M8 3h10a2 2 0 0 1 2 2v12"/><path d="m8 13 2 2 4-4"/></svg><span>Practice</span></a>
+    <a href="#talk" data-tab="talk"><svg viewBox="0 0 24 24"><path d="M4 5h11a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9l-4 3v-3H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><path d="M19 9h1a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-1v3l-4-3h-3"/></svg><span>Conversation</span></a>
   </div>
 </nav>
 
@@ -711,6 +766,7 @@ function renderSummary() {
 function renderWords() {
   renderSummary();
   updatePractiseCount();
+  updateTalkCount();
   const ul = $("#word-list");
   const list = filteredItems();
   const emptyBox = $("#words-empty");
@@ -983,8 +1039,268 @@ function showDone() {
   renderWords();
 }
 
+/* ---------- CONVERSATION ---------- */
+const T = { items: [], rounds: 2, round: 0, turns: [], log: [], ctl: null, busy: false, done: false, history: [] };
+const MIN_WORDS = 2;
+
+function wordUsed(text, word) {
+  const t = norm(text), w = norm(word);
+  if (!w) return false;
+  if (w.includes(" ")) return t.includes(w);
+  const stem = w.length > 5 ? w.slice(0, w.length - 2) : w.length > 3 ? w.slice(0, w.length - 1) : w;
+  return new RegExp("\\b" + stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\w*", "i").test(t);
+}
+
+function updateTalkCount() {
+  const which = document.querySelector('input[name="tw"]:checked').value;
+  const n = +document.querySelector('input[name="tn"]:checked').value;
+  const avail = pickWords(which, 1000).length;
+  const el = $("#talk-count");
+  if (!S.items.size) el.textContent = "Save a few words first, then come back for a conversation.";
+  else el.textContent = `${Math.min(n, avail)} word${Math.min(n, avail) === 1 ? "" : "s"} ready.`;
+  $("#talk-go").disabled = !avail || T.busy;
+}
+document.querySelectorAll("#talk-setup input").forEach((r) => r.addEventListener("change", updateTalkCount));
+
+const wordList = () => T.items.map((it) => ({ word: it.headword, pos: it.senses?.[0]?.pos || "", meaning: it.senses?.[0]?.definition || "" }));
+const transcript = () => T.turns.map((t) => (t.role === "claude" ? "Claude: " : "Learner: ") + t.text).join("\n");
+
+/* History: kept privately per person under data/users/<id>/ */
+async function loadTalkHistory() {
+  if (!S.db || !S.me.id) return;
+  try {
+    const snap = await S.db.collection("data/users/" + S.me.id).orderBy("at", "desc").limit(6).get();
+    T.history = snap.docs.map((d) => d.data()).filter((d) => d && d.kind === "conversation");
+  } catch { T.history = []; }
+  renderTalkHistory();
+}
+function avgScore(sc) { const v = Object.values(sc || {}).map(Number).filter((x) => x >= 1 && x <= 5); return v.length ? (v.reduce((a, b) => a + b, 0) / v.length) : null; }
+function renderTalkHistory() {
+  const box = $("#talk-history");
+  if (!T.history.length || T.items.length && !T.done) { box.innerHTML = ""; return; }
+  box.innerHTML = `<div class="panel"><div class="row" style="justify-content:space-between"><span class="label">Your recent conversations</span><span class="small muted">Only you see this</span></div>
+    <ul class="hist">${T.history.slice(0, 5).map((h) => {
+      const a = avgScore(h.scores);
+      return `<li><span>${esc(new Date(h.at).toLocaleDateString(undefined, { day: "numeric", month: "short" }))} · ${esc((h.words || []).join(", "))}</span><span class="muted">${a ? "Overall " + a.toFixed(1) + "/5" : ""}</span></li>`;
+    }).join("")}</ul></div>`;
+}
+
+$("#talk-setup").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  if (T.busy) return;
+  const n = +document.querySelector('input[name="tn"]:checked').value;
+  const which = document.querySelector('input[name="tw"]:checked').value;
+  const items = pickWords(which, n);
+  if (!items.length) return;
+  Object.assign(T, { items, rounds: +document.querySelector('input[name="tl"]:checked').value, round: 0, turns: [], log: [], done: false });
+  $("#talk-setup").hidden = true;
+  renderTalkHistory();
+  const area = $("#talk-area");
+  if (!S.sample) { area.innerHTML = `<div class="note warn">${esc(noClaudeText)}</div><div><button class="btn-2" type="button" id="talk-back">Back to setup</button></div>`; $("#talk-back").onclick = endTalkUi; return; }
+  area.innerHTML = `<div class="chat" id="chat"></div><div id="talk-tail"></div>`;
+  await claudeOpens();
+});
+
+function endTalkUi() {
+  if (T.ctl) T.ctl.abort();
+  T.busy = false; T.items = []; T.done = false;
+  $("#talk-area").innerHTML = "";
+  $("#talk-setup").hidden = false;
+  renderTalkHistory(); updateTalkCount();
+}
+
+function addBubble(role, text) {
+  const chat = $("#chat");
+  const div = document.createElement("div");
+  div.className = "bubble " + (role === "claude" ? "claude" : "me");
+  div.innerHTML = `<div class="who"><span>${role === "claude" ? "Claude" : "You"}</span>${role === "claude" && canSpeak() ? `<button type="button" class="btn-ghost" data-speak="${esc(text)}">Listen</button>` : ""}</div>`;
+  const body = document.createElement("div"); body.textContent = text; div.append(body);
+  chat.append(div);
+  return div;
+}
+
+function setTail(html) { $("#talk-tail").innerHTML = html; }
+
+async function claudeOpens() {
+  T.busy = true; T.ctl = new AbortController();
+  setTail(`<div class="panel">${THINK("Claude is starting the conversation…")}</div>`);
+  const prompt = `You are a warm, curious conversation partner helping an adult reader practise vocabulary from books.
+Their words: ${JSON.stringify(wordList())}
+Start a natural conversation on an everyday topic you choose that suits several of these words (for example travel, work, food, a book they're reading, family, a memory).
+Write 2 to 4 sentences and end with one open question that invites a reply in which they could naturally use at least ${MIN_WORDS} of the words. Do not use the words yourself and do not explain the exercise.
+Reply with only JSON: {"message": "..."}`;
+  try {
+    const r = await S.sample.json(prompt, { modelTier: "quick", cache: false, signal: T.ctl.signal });
+    const msg = String(r?.message || "").trim();
+    if (!msg) throw { code: "empty_completion" };
+    T.turns.push({ role: "claude", text: msg });
+    addBubble("claude", msg);
+    showComposer();
+  } catch (e) {
+    if (e && e.code === "cancelled") return;
+    setTail(`<div class="note bad">${esc(aiError(e))}</div><div class="row"><button class="btn" type="button" id="t-retry">Try again</button><button class="btn-2" type="button" id="t-quit">Back to setup</button></div>`);
+    $("#t-retry").onclick = claudeOpens; $("#t-quit").onclick = endTalkUi;
+  } finally { T.busy = false; }
+}
+
+function showComposer() {
+  const need = Math.min(MIN_WORDS, T.items.length);
+  const roundLabel = T.rounds ? `Round ${T.round + 1} of ${T.rounds}` : `Round ${T.round + 1}`;
+  setTail(`<form class="composer" id="composer">
+      <div class="row" style="justify-content:space-between"><span class="label">${roundLabel}</span><span class="small muted" id="used-count"></span></div>
+      <div class="small muted">Use at least ${need} of these words in your reply:</div>
+      <div class="wchips">${T.items.map((it, i) => `<span class="wchip" data-wi="${i}">${esc(it.headword)}</span>`).join("")}</div>
+      <label class="small" for="reply" hidden>Your reply</label>
+      <textarea id="reply" placeholder="Write your reply…" rows="4"></textarea>
+      <div class="row"><button class="btn" type="submit" id="send">Send</button><button class="btn-2" type="button" id="t-end">End conversation</button></div>
+      <div id="reply-hint" class="small" aria-live="polite"></div>
+    </form>`);
+  const ta = $("#reply");
+  const refresh = () => {
+    let n = 0;
+    document.querySelectorAll("#composer [data-wi]").forEach((c) => { const u = wordUsed(ta.value, T.items[+c.dataset.wi].headword); c.classList.toggle("used", u); if (u) n++; });
+    $("#used-count").textContent = `${n} of ${T.items.length} used`;
+    return n;
+  };
+  ta.addEventListener("input", () => { refresh(); $("#reply-hint").textContent = ""; });
+  refresh();
+  $("#t-end").onclick = () => (T.log.length ? wrapUp() : endTalkUi());
+  $("#composer").onsubmit = (ev) => {
+    ev.preventDefault();
+    const text = ta.value.trim();
+    if (!text) return;
+    if (refresh() < need && !ta.dataset.warned) {
+      ta.dataset.warned = "1";
+      $("#reply-hint").innerHTML = `<span style="color:var(--warn)">It looks like you've used fewer than ${need} of the words. Tap Send again to send anyway.</span>`;
+      return;
+    }
+    sendReply(text);
+  };
+  ta.focus({ preventScroll: true });
+}
+
+async function sendReply(text) {
+  T.busy = true; T.ctl = new AbortController();
+  const meBubble = addBubble("me", text);
+  T.turns.push({ role: "me", text });
+  const final = T.rounds > 0 && T.round + 1 >= T.rounds;
+  setTail(`<div class="panel">${THINK("Reading your reply…")}<div><button class="btn-2" type="button" id="t-stop">Stop</button></div></div>`);
+  $("#t-stop").onclick = () => T.ctl.abort();
+  const prompt = `You are a warm but honest English coach having a practice conversation with an adult learner.
+Target words (with the meanings they are learning): ${JSON.stringify(wordList())}
+The learner should use at least ${Math.min(MIN_WORDS, T.items.length)} of the target words in each reply.
+
+Conversation so far:
+${transcript()}
+
+Assess ONLY the learner's latest reply. Be specific and honest: do not praise mistakes; if something is awkward, say so kindly. Check each target word they used (any inflected form counts) for correct meaning, grammar and collocation. Then check the rest of the reply for grammar, word choice and natural phrasing.
+${final ? "This was their last reply: set \"next\" to a short, friendly closing line (one or two sentences, no question)." : `Then continue the conversation naturally: react to what they said and ask one new open question that invites them to use at least ${MIN_WORDS} of the target words (prefer words they haven't used yet). Do not use the target words yourself.`}
+
+Reply with only JSON:
+{"wordsUsed": [{"word": "target word as listed", "correct": true, "note": "one short sentence"}],
+ "requirementMet": true,
+ "corrections": [{"original": "exact phrase from their reply", "better": "improved phrase", "why": "short reason"}],
+ "smoother": "a natural, polished version of their whole reply (keep their meaning and the target words), or null if it is already very good",
+ "praise": "one honest sentence on what worked well, or null",
+ "next": "your next message"}
+Up to 4 corrections; leave the list empty if there is nothing worth correcting.`;
+  let r;
+  try { r = await S.sample.json(prompt, { modelTier: "default", effort: "low", cache: false, signal: T.ctl.signal }); }
+  catch (e) {
+    T.turns.pop(); meBubble.remove();
+    if (e && e.code === "cancelled") { showComposer(); $("#reply").value = text; T.busy = false; return; }
+    showComposer(); $("#reply").value = text;
+    $("#reply-hint").innerHTML = `<span style="color:var(--bad)">${esc(aiError(e))}</span>`;
+    T.busy = false; return;
+  }
+  // Feedback card under the reply
+  const byWord = new Map(T.items.map((it) => [norm(it.headword), it]));
+  const used = (Array.isArray(r?.wordsUsed) ? r.wordsUsed : []).map((u) => ({ it: byWord.get(norm(u?.word)), correct: !!u?.correct, note: String(u?.note || "") })).filter((u) => u.it);
+  const seen = new Set();
+  const usedUnique = used.filter((u) => { const k = keyOf(u.it); if (seen.has(k)) return false; seen.add(k); return true; });
+  usedUnique.forEach((u) => recordProgress(u.it, u.correct ? "right" : "wrong"));
+  const corr = (Array.isArray(r?.corrections) ? r.corrections : []).filter((c) => c && c.original && c.better).slice(0, 4);
+  const fb = document.createElement("div");
+  fb.className = "fb";
+  fb.innerHTML = `<div class="label">Feedback</div>
+    ${usedUnique.length ? `<div class="wchips">${usedUnique.map((u) => `<span class="wchip ${u.correct ? "ok" : "no"}">${u.correct ? "✓" : "✗"} ${esc(u.it.headword)}</span>`).join("")}</div>
+      <ul>${usedUnique.map((u) => `<li><b>${esc(u.it.headword)}</b>: ${esc(u.note)}</li>`).join("")}</ul>` : `<div>No target words were used in this reply.</div>`}
+    ${r?.requirementMet === false ? `<div class="note warn">Try to use at least ${Math.min(MIN_WORDS, T.items.length)} of the words next time.</div>` : ""}
+    ${corr.length ? `<div class="label">Corrections</div><ul>${corr.map((c) => `<li><span class="was">${esc(c.original)}</span> → <b>${esc(c.better)}</b>${c.why ? `<br><span class="muted">${esc(c.why)}</span>` : ""}</li>`).join("")}</ul>` : ""}
+    ${r?.smoother ? `<div class="label">A smoother version</div><div class="better">${esc(r.smoother)}</div>` : ""}
+    ${r?.praise ? `<div class="muted">${esc(r.praise)}</div>` : ""}`;
+  meBubble.after(fb);
+  T.log.push({ reply: text, used: usedUnique.map((u) => ({ word: u.it.headword, correct: u.correct })), corrections: corr.map((c) => ({ original: String(c.original), better: String(c.better) })) });
+  T.round++;
+  const next = String(r?.next || "").trim();
+  if (next) { T.turns.push({ role: "claude", text: next }); addBubble("claude", next); }
+  T.busy = false;
+  if (final || !next) wrapUp(); else showComposer();
+}
+
+async function wrapUp() {
+  if (T.done) return;
+  T.busy = true; T.ctl = new AbortController();
+  setTail(`<div class="panel">${THINK("Putting together your feedback…")}</div>`);
+  const earlier = T.history.slice(0, 5).reverse().map((h) => ({
+    date: new Date(h.at).toISOString().slice(0, 10), scores: h.scores, workOn: h.workOn, sampleReplies: (h.replies || []).slice(0, 3),
+  }));
+  const prompt = `You are an honest, encouraging English coach. An adult learner just finished a written practice conversation using target vocabulary.
+Target words: ${JSON.stringify(wordList())}
+Conversation:
+${transcript()}
+Per-reply feedback already given: ${JSON.stringify(T.log)}
+${earlier.length ? `Their earlier sessions (oldest first): ${JSON.stringify(earlier)}` : "This is their first recorded session."}
+
+Score this session's replies from 1 to 5 on clarity (ideas expressed clearly), grammar, vocabulary (accurate, varied word use, including the target words) and naturalness (sounds like fluent English). Be calibrated and honest: 3 means understandable with noticeable errors, 5 means near-native.
+${earlier.length ? "Compare with the earlier sessions honestly: say whether they are articulating things better, the same or worse, with concrete evidence (e.g. fewer article errors, longer well-formed sentences, better word choice). If there is no real change, say so; don't invent progress." : "Since there are no earlier sessions, set \"progress\" to null."}
+
+Reply with only JSON:
+{"summary": "2 or 3 sentences on how this conversation went",
+ "scores": {"clarity": 1-5, "grammar": 1-5, "vocabulary": 1-5, "naturalness": 1-5},
+ "strengths": ["up to 3 specific strengths"],
+ "workOn": ["up to 3 specific things to work on, each with a tip"],
+ "progress": ${earlier.length ? '"2 to 4 honest sentences comparing with earlier sessions"' : "null"}}`;
+  let r;
+  try { r = await S.sample.json(prompt, { modelTier: "default", cache: false, signal: T.ctl.signal }); }
+  catch (e) {
+    T.busy = false;
+    if (e && e.code === "cancelled") return;
+    setTail(`<div class="note bad">${esc(aiError(e))}</div><div class="row"><button class="btn" type="button" id="w-retry">Try again</button><button class="btn-2" type="button" id="w-quit">Finish without summary</button></div>`);
+    $("#w-retry").onclick = wrapUp; $("#w-quit").onclick = endTalkUi;
+    return;
+  }
+  T.done = true; T.busy = false;
+  const sc = {};
+  for (const k of ["clarity", "grammar", "vocabulary", "naturalness"]) { const v = Math.round(+r?.scores?.[k]); if (v >= 1 && v <= 5) sc[k] = v; }
+  const strengths = (Array.isArray(r?.strengths) ? r.strengths : []).map(String).slice(0, 3);
+  const workOn = (Array.isArray(r?.workOn) ? r.workOn : []).map(String).slice(0, 3);
+  const labels = { clarity: "Clarity", grammar: "Grammar", vocabulary: "Vocabulary", naturalness: "Naturalness" };
+  const usedOk = new Set(T.log.flatMap((l) => l.used.filter((u) => u.correct).map((u) => u.word)));
+  setTail(`<div class="card-q">
+      <div class="label">How it went</div>
+      <p style="margin:0;font-family:var(--serif)">${esc(r?.summary || "")}</p>
+      ${Object.keys(sc).length ? `<div class="scores">${Object.entries(sc).map(([k, v]) => `<span>${labels[k]}</span><span class="bar"><i style="width:${v * 20}%"></i></span><span>${v}/5</span>`).join("")}</div>` : ""}
+      <div class="small muted">Words used correctly: ${usedOk.size ? esc([...usedOk].join(", ")) : "none yet"}</div>
+      ${strengths.length ? `<div class="label">What you did well</div><ul style="margin:0;padding-left:1.1em">${strengths.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>` : ""}
+      ${workOn.length ? `<div class="label">Work on</div><ul style="margin:0;padding-left:1.1em">${workOn.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>` : ""}
+      <div class="label">Your progress</div>
+      <p style="margin:0">${r?.progress ? esc(r.progress) : "This is your first recorded conversation. Future conversations will be compared with this one."}</p>
+      <div class="row"><button class="btn" type="button" id="t-new">New conversation</button></div>
+    </div>`);
+  $("#t-new").onclick = endTalkUi;
+  // Save privately for future comparisons
+  if (S.db && S.me.id) {
+    const doc = {
+      kind: "conversation", at: Date.now(), words: T.items.map((it) => it.headword), rounds: T.log.length,
+      scores: sc, workOn, replies: T.log.map((l) => l.reply.slice(0, 500)).slice(0, 8),
+    };
+    try { await S.db.collection("data/users/" + S.me.id).doc("c" + doc.at).set(doc); T.history.unshift(doc); } catch {}
+  }
+}
+
 /* ---------- routing ---------- */
-const TABS = ["lookup", "words", "practise"];
+const TABS = ["lookup", "words", "practise", "talk"];
 function route() {
   const h = location.hash.replace("#", "");
   const tab = TABS.includes(h) ? h : "lookup";
@@ -992,6 +1308,7 @@ function route() {
   document.querySelectorAll("nav.tabs a").forEach((a) => { if (a.dataset.tab === tab) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
   if (tab === "words") renderWords();
   if (tab === "practise") updatePractiseCount();
+  if (tab === "talk") { updateTalkCount(); loadTalkHistory(); }
 }
 window.addEventListener("hashchange", () => { route(); window.scrollTo(0, 0); });
 
@@ -1104,6 +1421,7 @@ async function boot() {
   await showAccessNote();
   if (db) {
     startDb();
+    if (location.hash === "#talk") loadTalkHistory();
   } else {
     S.dbReady = "none";
     setSync("Not signed in");
