@@ -893,14 +893,19 @@ Write one question per word, following its "type":
 - "meaning": if n is odd, ask "What does “WORD” mean?" with 4 meanings as choices; if n is even, give the meaning and ask which word fits it, with 4 words as choices (plausible real words of the same part of speech). Wrong choices should be believable but clearly wrong.
 - "blank": a NEW natural sentence (not a dictionary example) where the word fits, with the word replaced by "_____". Choices: the word in the form the sentence needs plus 3 believable real words in the same form that don't fit the meaning.
 - "situation": ask "Which situation best shows “WORD”?" and give 4 short, concrete everyday situations (one or two sentences each, never using the word itself). Exactly one clearly illustrates the word's meaning; the others are near misses.
-Each item: {"n": number, "question": "...", "choices": ["4 strings"], "answer": index of the right choice 0-3, "explain": "one sentence on why"}
-Put the right answer in a random position. Reply with only a JSON array, one item per word.`;
+Each item: {"n": number, "question": "...", "correct": "the one right choice", "wrong": ["3 wrong choices"], "explain": "one sentence on why the right choice is right"}
+Double-check that "correct" really is the right answer and that no "wrong" choice could also be right. Reply with only a JSON array, one item per word.`;
   const arr = await S.sample.json(prompt, { modelTier: "quick", cache: false, signal });
   const out = {};
   if (Array.isArray(arr)) for (const q of arr) {
     const row = list[(+q?.n || 0) - 1];
-    if (!row || !Array.isArray(q.choices) || q.choices.length < 2 || !(q.answer >= 0 && q.answer < q.choices.length)) continue;
-    out[keyOf(row.it)] = { question: String(q.question || ""), choices: q.choices.map(String).slice(0, 4), answer: +q.answer, explain: String(q.explain || "") };
+    if (!row || typeof q.correct !== "string" || !q.correct.trim() || !Array.isArray(q.wrong)) continue;
+    // The page shuffles the choices itself and remembers which one is right.
+    const correct = q.correct.trim();
+    const wrong = [...new Set(q.wrong.map((w) => String(w).trim()))].filter((w) => w && norm(w) !== norm(correct)).slice(0, 3);
+    if (!wrong.length) continue;
+    const choices = shuffle([correct, ...wrong]);
+    out[keyOf(row.it)] = { question: String(q.question || ""), choices, answer: choices.indexOf(correct), explain: String(q.explain || "") };
   }
   return out;
 }
